@@ -32,12 +32,11 @@ class EmulatorConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String avdName;
-    private AndroidPlatform osVersion;
+    private EmulatorVersion emulatorVersion;
     private ScreenDensity screenDensity;
     private ScreenResolution screenResolution;
     private String deviceLocale;
     private String sdCardSize;
-    private String targetAbi;
     private boolean wipeData;
     private final boolean showWindow;
     private final boolean useSnapshots;
@@ -84,8 +83,8 @@ class EmulatorConfig implements Serializable {
                 + deviceLocale.substring(3).toUpperCase();
         }
 
-        this.osVersion = AndroidPlatform.valueOf(osVersion);
-        if (this.osVersion == null) {
+        this.emulatorVersion = new EmulatorVersion(osVersion, targetAbi);
+        if (this.emulatorVersion == null) {
             throw new IllegalArgumentException(
                     "OS version not recognised: " + osVersion);
         }
@@ -108,7 +107,7 @@ class EmulatorConfig implements Serializable {
         if (targetAbi != null && targetAbi.startsWith("default/")) {
             targetAbi = targetAbi.replace("default/", "");
         }
-        this.targetAbi = targetAbi;
+    
         this.androidSdkHome = androidSdkHome;
         this.executable = executable;
         this.avdNameSuffix = avdNameSuffix;
@@ -137,7 +136,7 @@ class EmulatorConfig implements Serializable {
     }
 
     public boolean isNamedEmulator() {
-        return avdName != null && osVersion == null;
+        return avdName != null && emulatorVersion == null;
     }
 
     public String getAvdName() {
@@ -148,28 +147,27 @@ class EmulatorConfig implements Serializable {
         return getGeneratedAvdName();
     }
 
+    public String getEmulatorVersionString() {
+    	return emulatorVersion.getEmulatorVersionString();
+    }
+    
+    public AndroidPlatform getEumulatorOSPlatform() {
+    	return emulatorVersion.getOSPlatform();
+    }
+    
     private String getGeneratedAvdName() {
         String locale = getDeviceLocale().replace('_', '-');
         String density = screenDensity.toString();
         String resolution = screenResolution.toString();
-        String platform = osVersion.getTargetName().replaceAll("[^a-zA-Z0-9._-]", "_");
-        String abi = "";
-        if (targetAbi != null && osVersion.requiresAbi()) {
-            abi = "_" + targetAbi.replaceAll("[^a-zA-Z0-9._-]", "-");
-        }
+        String platform = getEmulatorVersionString().replaceAll("[^a-zA-Z0-9._-]", "_");
         String suffix = "";
         if (avdNameSuffix != null) {
             suffix = "_" + avdNameSuffix.replaceAll("[^a-zA-Z0-9._-]", "-");
         }
 
-        return String.format("hudson_%s_%s_%s_%s%s%s", locale, density, resolution, platform, abi, suffix);
+        return String.format("hudson_%s_%s_%s_%s%s", locale, density, resolution, platform, suffix);
     }
 
-    public AndroidPlatform getOsVersion() {
-        return osVersion;
-    }
-
-    public String getTargetAbi() { return targetAbi; }
 
     public ScreenDensity getScreenDensity() {
         return screenDensity;
@@ -342,9 +340,9 @@ class EmulatorConfig implements Serializable {
         // nor can we use the "-prop" or "-report-console" command line flags that we require.
         //
         // See Android bugs 202762, 202853, 205202 and 205204
-        if (emulatorSupportsEngineFlag) {
-            sb.append(" -engine classic");
-        }
+//        if (emulatorSupportsEngineFlag) {
+//            sb.append(" -engine classic");
+//        }
 
         // Tell the emulator to use certain ports
         sb.append(String.format(" -ports %s,%s", userPort, adbPort));
@@ -365,15 +363,15 @@ class EmulatorConfig implements Serializable {
         sb.append(getAvdName());
 
         // Snapshots
-        if (snapshotState == SnapshotState.BOOT) {
-            // For builds after initial snapshot setup, start directly from the "jenkins" snapshot
-            sb.append(" -snapshot "+ Constants.SNAPSHOT_NAME);
-            sb.append(" -no-snapshot-save");
-        } else if (sdkSupportsSnapshots) {
-            // For the first boot, or snapshot-free builds, do not load any snapshots that may exist
-            sb.append(" -no-snapshot-load");
-            sb.append(" -no-snapshot-save");
-        }
+//        if (snapshotState == SnapshotState.BOOT) {
+//            // For builds after initial snapshot setup, start directly from the "jenkins" snapshot
+//            sb.append(" -snapshot "+ Constants.SNAPSHOT_NAME);
+//            sb.append(" -no-snapshot-save");
+//        } else if (sdkSupportsSnapshots) {
+//            // For the first boot, or snapshot-free builds, do not load any snapshots that may exist
+//            sb.append(" -no-snapshot-load");
+//            sb.append(" -no-snapshot-save");
+//        }
 
         // Options
         if (shouldWipeData()) {
@@ -517,50 +515,49 @@ class EmulatorConfig implements Serializable {
             final StringBuilder args = new StringBuilder(100);
             args.append("create avd ");
 
-            // Overwrite any existing files
-            args.append("-f ");
-
-            // Initialise snapshot support, regardless of whether we will actually use it
-            if (androidSdk.supportsSnapshots()) {
-                args.append("-a ");
-            }
-
-            if (sdCardSize != null) {
-                args.append("-c ");
-                args.append(sdCardSize);
-                args.append(" ");
-            }
-            args.append("-s ");
-            args.append(screenResolution.getSkinName());
             args.append(" -n ");
             args.append(getAvdName());
-            boolean isUnix = !Functions.isWindows();
-            ArgumentListBuilder builder = Utils.getToolCommand(androidSdk, isUnix, Tool.ANDROID, args.toString());
+            
+            String quotedVersionString = "\"" + emulatorVersion.getEmulatorVersionString() + "\"";
+            AndroidEmulator.log(logger, "Waylon - quoted version: " + quotedVersionString);
+            args.append(" -k ");
+            args.append(emulatorVersion.getEmulatorVersionString());
+            
 
-            // Tack on quoted platform name at the end, since it can be anything
-            builder.add("-t");
-            builder.add(osVersion.getTargetName());
-
-            if (targetAbi != null && osVersion.requiresAbi()) {
-                // This is an unpleasant side-effect of there being an ABI for android-10,
-                // and that Google renamed the image after its initial release from Intel...
-                // Ideally, as stated in AndroidPlatform#requiresAbi, we should preferably check
-                // via the "android list target" command whether an ABI is actually required.
-                if (osVersion.getSdkLevel() != 10 || targetAbi.equals("armeabi")
-                        || targetAbi.equals("x86")) {
-                    builder.add("--abi");
-                    builder.add(targetAbi);
-                }
+            if (sdCardSize != null) {
+                args.append(" -c ");
+                args.append(sdCardSize);
             }
+         
+            // Overwrite any existing files
+            args.append(" -f ");
+            
+            boolean isUnix = !Functions.isWindows();
+            ArgumentListBuilder builder = Utils.getToolCommand(androidSdk, isUnix, Tool.AVDMANAGER, args.toString());
 
             // Log command line used, for info
             AndroidEmulator.log(logger, builder.toStringWithQuote());
 
+            for(String arg: builder.toList()) {
+            	AndroidEmulator.log(logger, "Waylon - arg: " + arg);
+            }
+            
             // Run!
             boolean avdCreated = false;
             final Process process;
             try {
                 ProcessBuilder procBuilder = new ProcessBuilder(builder.toList());
+                for(String cmd: procBuilder.command()) {
+                	AndroidEmulator.log(logger, "Waylon - commands: " + cmd);
+                }
+                
+                String fullcommand = "";
+                for(String cmd: procBuilder.command()) {
+                	fullcommand = fullcommand + " " + cmd;
+                }
+                
+                AndroidEmulator.log(logger, "Waylon - full commands: " + fullcommand);
+                
                 if (androidSdk.hasKnownHome()) {
                     procBuilder.environment().put("ANDROID_SDK_HOME", androidSdk.getSdkHome());
                 }
@@ -574,6 +571,12 @@ class EmulatorConfig implements Serializable {
             ByteArrayOutputStream stdout = new ByteArrayOutputStream();
             new StreamCopyThread("", process.getErrorStream(), stderr).start();
 
+            try {
+            	Thread.sleep(1000);
+            } catch(InterruptedException e) {
+            	// do nothing
+            }
+            
             // Command may prompt us whether we want to further customise the AVD.
             // Just "press" Enter to continue with the selected target's defaults.
             try {
@@ -583,6 +586,7 @@ class EmulatorConfig implements Serializable {
                 final PushbackInputStream in = new PushbackInputStream(process.getInputStream(), 10);
                 int len = in.read();
                 if (len == -1) {
+                	AndroidEmulator.log(logger, "Waylon - length is -1");
                     // Check whether the process has exited badly, as sometimes no output is valid.
                     // e.g. When creating an AVD with Google APIs, no user input is requested.
                     if (process.waitFor() != 0) {
@@ -593,16 +597,17 @@ class EmulatorConfig implements Serializable {
                     processAlive = false;
                 }
                 in.unread(len);
-
+                AndroidEmulator.log(logger, "Waylon - Before return");
                 // Write CRLF, if required
                 if (processAlive) {
+                    AndroidEmulator.log(logger, "Waylon - Issue return");
                     final OutputStream stream = process.getOutputStream();
                     stream.write('\r');
                     stream.write('\n');
                     stream.flush();
                     stream.close();
                 }
-
+                AndroidEmulator.log(logger, "Waylon - AFTER return");
                 // read the rest of stdout (for debugging purposes)
                 Util.copyStream(in, stdout);
                 in.close();
@@ -625,12 +630,19 @@ class EmulatorConfig implements Serializable {
             // So check whether stderr contains failure info (useful for other platforms too).
             String errOutput = stderr.toString();
             String output = stdout.toString();
-            if (errOutput.contains("list targets")) {
-                AndroidEmulator.log(logger, Messages.INVALID_AVD_TARGET(osVersion.getTargetName()));
+            
+            AndroidEmulator.log(logger, "Waylon - Output:" + output);
+            AndroidEmulator.log(logger, "Waylon - ErrOutput:" + errOutput);
+
+            
+            if (errOutput.contains("Error: Package path is not valid")) {
+                AndroidEmulator.log(logger, Messages.INVALID_AVD_TARGET(emulatorVersion.getEmulatorVersionString()));
+                AndroidEmulator.log(logger, errOutput);
                 avdCreated = false;
                 errOutput = null;
-            } else if (errOutput.contains("more than one ABI")) {
-                AndroidEmulator.log(logger, Messages.MORE_THAN_ONE_ABI(osVersion.getTargetName(), output), true);
+            } else if (output.contains("Error: Package path is not valid")) {
+                AndroidEmulator.log(logger, Messages.MORE_THAN_ONE_ABI(emulatorVersion.getEmulatorVersionString(), output), true);
+                AndroidEmulator.log(logger, output);
                 avdCreated = false;
                 errOutput = null;
             }

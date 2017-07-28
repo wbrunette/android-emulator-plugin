@@ -52,11 +52,11 @@ public class ProjectPrerequisitesInstaller extends AbstractBuilder {
             return false;
         }
 
-        // Install platform(s)
-        log(logger, Messages.ENSURING_PLATFORMS_INSTALLED(platforms));
-        for (String platform : platforms) {
-            SdkInstaller.installPlatform(logger, launcher, androidSdk, platform, null);
-        }
+//        // Install platform(s)
+//        log(logger, Messages.ENSURING_PLATFORMS_INSTALLED(platforms));
+//        for (String platform : platforms) {
+//            SdkInstaller.installPlatform(logger, launcher, androidSdk, platform, null);
+//        }
 
         // Done!
         return true;

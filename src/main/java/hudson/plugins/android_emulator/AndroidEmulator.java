@@ -236,6 +236,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
             return null;
         }
 
+        log(logger, "Waylon Was HERE!!");
         // Confirm that the required SDK tools are available
         AndroidSdk androidSdk = Utils.getAndroidSdk(launcher, androidHome, androidSdkHome);
         if (androidSdk == null) {
@@ -261,7 +262,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
 
         // Install the required SDK components for the desired platform, if necessary
         if (descriptor.shouldInstallSdk) {
-            SdkInstaller.installDependencies(logger, launcher, androidSdk, emuConfig);
+            SdkInstaller.installPlatform(logger, launcher, androidSdk, emuConfig);
         }
 
         // Ok, everything looks good.. let's go
@@ -277,23 +278,28 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
                 throws IOException, InterruptedException {
         final PrintStream logger = listener.getLogger();
 
+        log(logger, "Waylon - emulator check");
+        
         // First ensure that emulator exists
         final boolean emulatorAlreadyExists;
         try {
             Callable<Boolean, AndroidEmulatorException> task = emuConfig.getEmulatorCreationTask(androidSdk, listener);
             emulatorAlreadyExists = launcher.getChannel().call(task);
+            log(logger, "Waylon - EnumulatorAlreadyExists: " + Boolean.toString(emulatorAlreadyExists));
         } catch (EmulatorDiscoveryException ex) {
             log(logger, Messages.CANNOT_START_EMULATOR(ex.getMessage()));
             build.setResult(Result.FAILURE);
             return null;
         } catch (AndroidEmulatorException ex) {
-            log(logger, Messages.COULD_NOT_CREATE_EMULATOR(ex.getMessage()));
+        	log(logger, "Waylon - AndroidEmulatorException");
+        	log(logger, Messages.COULD_NOT_CREATE_EMULATOR(ex.getMessage()));
             build.setResult(Result.NOT_BUILT);
             return null;
         }
 
         // Update emulator configuration with desired hardware properties
         if (!emuConfig.isNamedEmulator() && hardwareProperties.length != 0) {
+        	log(logger, "Waylon - In Update Emulator Config");
             Callable<Void, IOException> task = emuConfig.getEmulatorConfigTask(hardwareProperties, listener);
             launcher.getChannel().call(task);
         }
@@ -437,7 +443,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
             final long adbTimeout = BOOT_COMPLETE_TIMEOUT_MS / 16;
             final String keyEventTemplate = String.format("-s %s shell input keyevent %%d", emu.serial());
             final String unlockArgs;
-            if (emuConfig.getOsVersion() != null && emuConfig.getOsVersion().getSdkLevel() >= 23) {
+            if (emuConfig.getEumulatorOSPlatform() != null && emuConfig.getEumulatorOSPlatform().getSdkLevel() >= 23) {
                 // Android 6.0 introduced a command to dismiss the keyguard on unsecured devices
                 unlockArgs = String.format("-s %s shell wm dismiss-keyguard", emu.serial());
             } else {
@@ -510,7 +516,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
                 env.put("ANDROID_ADB_SERVER_PORT", Integer.toString(emu.adbServerPort()));
                 env.put("ANDROID_TMP_LOGCAT_FILE", logcatFile.getRemote());
                 if (!emuConfig.isNamedEmulator()) {
-                    env.put("ANDROID_AVD_OS", emuConfig.getOsVersion().toString());
+                    env.put("ANDROID_AVD_OS", emuConfig.getEumulatorOSPlatform().toString());
                     env.put("ANDROID_AVD_DENSITY", emuConfig.getScreenDensity().toString());
                     env.put("ANDROID_AVD_RESOLUTION", emuConfig.getScreenResolution().toString());
                     env.put("ANDROID_AVD_SKIN", emuConfig.getScreenResolution().getSkinName());
@@ -707,7 +713,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
 
         int apiLevel = 0;
         if (!config.isNamedEmulator()) {
-            apiLevel = config.getOsVersion().getSdkLevel();
+            apiLevel = config.getEumulatorOSPlatform().getSdkLevel();
         }
         // Other tools use the "bootanim" variant, which supposedly signifies the system has booted a bit further;
         // though this doesn't appear to be available on Android 1.5, while it should work fine on Android 1.6+

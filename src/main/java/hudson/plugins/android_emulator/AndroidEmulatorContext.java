@@ -147,7 +147,12 @@ public class AndroidEmulatorContext {
 			buildEnvironment.put("ANDROID_SDK_HOME", sdk.getSdkHome());
 		}
 		if (launcher.isUnix()) {
-			buildEnvironment.put("LD_LIBRARY_PATH", String.format("%s/tools/lib", sdk.getSdkRoot()));
+			StringBuilder libPath = new StringBuilder();
+			libPath.append(String.format("%s/emulator/lib64:", sdk.getSdkRoot()));
+			libPath.append(String.format("%s/emulator/lib64/qt/lib:", sdk.getSdkRoot()));
+			libPath.append(String.format("%s/emulator/lib64/libstdc++:", sdk.getSdkRoot()));
+			libPath.append(String.format("%s/tools/lib:", sdk.getSdkRoot()));
+			buildEnvironment.put("LD_LIBRARY_PATH", libPath.toString());
 		}
 		return launcher.launch().stdout(new NullStream()).stderr(logger()).envs(buildEnvironment);
 	}

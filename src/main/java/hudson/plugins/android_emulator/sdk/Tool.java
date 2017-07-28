@@ -4,15 +4,16 @@ import hudson.plugins.android_emulator.SdkInstallationException;
 
 public enum Tool {
     ADB("adb", ".exe", new PlatformToolLocator()),
-    ANDROID("android", ".bat"),
-    EMULATOR("emulator", ".exe"),
-    EMULATOR_ARM("emulator-arm", ".exe"),
-    EMULATOR_MIPS("emulator-mips", ".exe"),
-    EMULATOR_X86("emulator-x86", ".exe"),
-    EMULATOR64_ARM("emulator64-arm", ".exe"),
-    EMULATOR64_MIPS("emulator64-mips", ".exe"),
-    EMULATOR64_X86("emulator64-x86", ".exe"),
-    MKSDCARD("mksdcard", ".exe");
+    SDKMANAGER("sdkmanager", ".bat", new ToolBinLocator()),
+    AVDMANAGER("avdmanager", ".bat", new ToolBinLocator()),
+    EMULATOR("emulator", ".exe", new DefaultEmulatorLocation()),
+    EMULATOR_ARM("emulator-arm", ".exe", new DefaultEmulatorLocation()),
+    EMULATOR_MIPS("emulator-mips", ".exe", new DefaultEmulatorLocation()),
+    EMULATOR_X86("emulator-x86", ".exe", new DefaultEmulatorLocation()),
+    EMULATOR64_ARM("emulator64-arm", ".exe", new DefaultEmulatorLocation()),
+    EMULATOR64_MIPS("emulator64-mips", ".exe", new DefaultEmulatorLocation()),
+    EMULATOR64_X86("emulator64-x86", ".exe", new DefaultEmulatorLocation()),
+    MKSDCARD("mksdcard", ".exe", new DefaultEmulatorLocation());
 
     public static Tool[] EMULATORS = new Tool[] { EMULATOR,
            EMULATOR_ARM,   EMULATOR_MIPS,   EMULATOR_X86,
@@ -20,7 +21,7 @@ public enum Tool {
     };
 
     public static Tool[] REQUIRED = new Tool[] {
-        ADB, ANDROID, EMULATOR
+        ADB, SDKMANAGER, AVDMANAGER, EMULATOR
     };
 
     public final String executable;

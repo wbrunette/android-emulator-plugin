@@ -50,6 +50,7 @@ public interface Constants {
 
 }
 
+
 enum SnapshotState {
     NONE,
     INITIALISE,
@@ -82,9 +83,11 @@ class AndroidPlatform implements Serializable {
     static final AndroidPlatform SDK_5_0 = new AndroidPlatform("5.0", 21);
     static final AndroidPlatform SDK_5_1 = new AndroidPlatform("5.1", 22);
     static final AndroidPlatform SDK_6_0 = new AndroidPlatform("6.0", 23);
+    static final AndroidPlatform SDK_7_0 = new AndroidPlatform("7.0", 24);
+    static final AndroidPlatform SDK_7_1 = new AndroidPlatform("7.1", 25);
     static final AndroidPlatform[] ALL = new AndroidPlatform[] { SDK_1_1, SDK_1_5, SDK_1_6, SDK_2_0,
         SDK_2_0_1, SDK_2_1, SDK_2_2, SDK_2_3, SDK_2_3_3, SDK_3_0, SDK_3_1, SDK_3_2, SDK_4_0,
-        SDK_4_0_3, SDK_4_1, SDK_4_2, SDK_4_3, SDK_4_4, SDK_4_4W, SDK_5_0, SDK_5_1, SDK_6_0 };
+        SDK_4_0_3, SDK_4_1, SDK_4_2, SDK_4_3, SDK_4_4, SDK_4_4W, SDK_5_0, SDK_5_1, SDK_6_0, SDK_7_0, SDK_7_1 };
 
     private final String name;
     private final int level;
@@ -120,19 +123,6 @@ class AndroidPlatform implements Serializable {
 
     public boolean isCustomPlatform() {
         return isAddon;
-    }
-
-    /**
-     * @return {@code true} if this platform requires an ABI to be explicitly specified during
-     * emulator creation.
-     */
-    public boolean requiresAbi() {
-        // TODO: Could be improved / this logic should ideally be moved to emulator creation time...
-        // This is a relatively naive approach; e.g. addons for level <= 13 can have ABIs, though
-        // the only example seen so far is the Intel x86 level 10 image we explicitly include here..
-        // But, since the Intel x86 for SDK 10 is now hosted by Google, we can't rely on the name...
-        return level == 10 || level >= 15
-                || Util.fixNull(name).contains("Intel Atom x86 System Image");
     }
 
     public String getTargetName() {

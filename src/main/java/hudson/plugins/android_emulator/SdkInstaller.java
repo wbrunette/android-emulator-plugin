@@ -134,7 +134,7 @@ public class SdkInstaller {
     private static String getBuildToolsPackageName(PrintStream logger, Launcher launcher, AndroidSdk sdk)
     throws IOException, InterruptedException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        Utils.runAndroidTool(launcher, output, logger, sdk, Tool.ANDROID, "list sdk --extended", null);
+        Utils.runAndroidTool(launcher, output, logger, sdk, Tool.SDKMANAGER, "list sdk --extended", null);
         Matcher m = Pattern.compile("\"(build-tools-.*?)\"").matcher(output.toString());
         if (!m.find()) {
             return null;
@@ -202,7 +202,7 @@ public class SdkInstaller {
         log(logger, Messages.INSTALLING_SDK_COMPONENTS(list));
         String all = sdk.getSdkToolsMajorVersion() < 17 ? "-o" : "-a";
         String upgradeArgs = String.format("update sdk -u %s %s -t %s", all, proxySettings, list);
-        ArgumentListBuilder cmd = Utils.getToolCommand(sdk, launcher.isUnix(), Tool.ANDROID, upgradeArgs);
+        ArgumentListBuilder cmd = Utils.getToolCommand(sdk, launcher.isUnix(), Tool.SDKMANAGER, upgradeArgs);
         ProcStarter procStarter = launcher.launch().stderr(logger).readStdout().writeStdin().cmds(cmd);
         if (sdk.hasKnownHome()) {
             EnvVars env = new EnvVars();
@@ -223,24 +223,6 @@ public class SdkInstaller {
         }
     }
 
-    /**
-     * Installs the platform for an emulator config into the given SDK installation, if necessary.
-     *
-     * @param logger Logs things.
-     * @param launcher Used to launch tasks on the remote node.
-     * @param sdk SDK installation to install components for.
-     * @param emuConfig Specifies the platform to be installed.
-     */
-    static void installDependencies(PrintStream logger, Launcher launcher,
-            AndroidSdk sdk, EmulatorConfig emuConfig) throws IOException, InterruptedException {
-        // Get AVD platform from emulator config
-        String platform = getPlatformForEmulator(launcher, emuConfig);
-
-        // Install platform and any dependencies it may have
-        boolean requiresAbi = !emuConfig.isNamedEmulator() && emuConfig.getOsVersion().requiresAbi();
-        String abi = requiresAbi ? emuConfig.getTargetAbi() : null;
-        installPlatform(logger, launcher, sdk, platform, abi);
-    }
 
     /**
      * Installs the given platform and its dependencies into the given installation, if necessary.
@@ -252,172 +234,24 @@ public class SdkInstaller {
      * @param abi Specifies the ABI to be installed; may be {@code null}.
      */
     public static void installPlatform(PrintStream logger, Launcher launcher, AndroidSdk sdk,
-            String platform, String abi) throws IOException, InterruptedException {
-        // Check whether this platform is already installed
-        if (isPlatformInstalled(logger, launcher, sdk, platform, abi)) {
-            return;
-        }
-
-        // Check whether we are capable of installing individual components
-        log(logger, Messages.PLATFORM_INSTALL_REQUIRED(platform));
-        if (!launcher.isUnix() && platform.contains(":") && sdk.getSdkToolsMajorVersion() < 16) {
-            // SDK add-ons can't be installed on Windows until r16 due to http://b.android.com/18868
-            log(logger, Messages.SDK_ADDON_INSTALLATION_UNSUPPORTED());
-            return;
-        }
-        if (!sdk.supportsComponentInstallation()) {
-            log(logger, Messages.SDK_COMPONENT_INSTALLATION_UNSUPPORTED());
-            return;
-        }
-
-        // Automated installation of ABIs (required for android-14+) is not possible until r17, so
-        // we should warn the user that we can't automatically set up an AVD with older SDK Tools.
-        // See http://b.android.com/21880
-        if ((platform.endsWith("14") || platform.endsWith("15")) && !sdk.supportsSystemImageInstallation()) {
-            log(logger, Messages.ABI_INSTALLATION_UNSUPPORTED(), true);
-        }
-
-        // Determine which individual component(s) need to be installed for this platform
-        List<String> components = getSdkComponentsForPlatform(logger, sdk, platform, abi);
-        if (components == null || components.size() == 0) {
-            return;
-        }
-
-        // If a platform expanded to multiple dependencies (e.g. "GoogleMaps:7" -> android-7 + Maps)
-        // then check whether we really need to install android-7, as it may already be installed
-        if (components.size() > 1) {
-            for (Iterator<String> it = components.iterator(); it.hasNext(); ) {
-                String component = it.next();
-                if (isPlatformInstalled(logger, launcher, sdk, component, null)) {
-                    it.remove();
-                }
-            }
-        }
-
-        // Grab the lock and attempt installation
-        Semaphore semaphore = acquireLock();
-        try {
-            installComponent(logger, launcher, sdk, components.toArray(new String[0]));
-        } finally {
-            semaphore.release();
-        }
-    }
-
-    private static boolean isPlatformInstalled(PrintStream logger, Launcher launcher,
-            AndroidSdk sdk, String platform, String abi) throws IOException, InterruptedException {
+    		EmulatorConfig emuConfig) throws IOException, InterruptedException {
+    	
         ByteArrayOutputStream targetList = new ByteArrayOutputStream();
-        // Preferably we'd use the "--compact" flag here, but it wasn't added until r12,
-        // nor does it give any information about which system images are installed...
-        Utils.runAndroidTool(launcher, targetList, logger, sdk, Tool.ANDROID, "list target", null);
-        boolean platformInstalled = targetList.toString().contains('"'+ platform +'"');
+        
+        String platformName = "\"" + emuConfig.getEmulatorVersionString() + "\"";
+        
+        log(logger, "LOOKING FOR PLATFORM: " + platformName);
+        Utils.runAndroidTool(launcher, targetList, logger, sdk, Tool.SDKMANAGER, platformName, null);
+        log(logger, "OUTPUT: " + targetList);
+        
+        boolean platformInstalled = targetList.toString().contains("done");
         if (!platformInstalled) {
-            return false;
+            log(logger, "WARINING POSSIBLE ERROR AS DID NOT GET A DONE");      
         }
-
-        if (abi != null) {
-            // Check whether the desired ABI is included in the output
-            Pattern regex = Pattern.compile(String.format("\"%s\".+?%s", platform, abi), Pattern.DOTALL);
-            Matcher matcher = regex.matcher(targetList.toString());
-            if (!matcher.find() || matcher.group(0).contains("---")) {
-                // We did not find the desired ABI within the section for the given platform
-                return false;
-            }
-        }
-
-        // Everything we wanted is installed
-        return true;
+  
     }
 
-    private static List<String> getSdkComponentsForPlatform(PrintStream logger, AndroidSdk sdk, String platform,
-            String abi) {
-        // Gather list of required components
-        List<String> components = new ArrayList<String>();
 
-        // Add dependent platform
-        int dependentPlatform = Utils.getApiLevelFromPlatform(platform);
-        if (dependentPlatform > 0) {
-            components.add(String.format("android-%s", dependentPlatform));
-        }
-
-        // Add system image, if required
-        // Even if a system image doesn't exist for this platform, the installer silently ignores it
-        if (dependentPlatform >= 10 && abi != null) {
-            if (sdk.supportsSystemImageNewFormat()) {
-                String tag = "android";
-                int slash = abi.indexOf('/');
-                if (slash > 0 && slash < abi.length() - 1) {
-                    tag = abi.substring(0, slash);
-                    abi = abi.substring(slash + 1);
-                }
-                components.add(String.format("sys-img-%s-%s-%d", abi, tag, dependentPlatform));
-            } else {
-                components.add(String.format("sysimg-%d", dependentPlatform));
-            }
-        }
-
-        // If it's a straightforward case like "android-10", we're done
-        if (!platform.contains(":")) {
-            return components;
-        }
-
-        // As of SDK r17-ish, we can't always map addon names directly to installable components.
-        // But replacing display name "Google Inc." with vendor ID "google" should cover most cases
-        platform = platform.replace("Google Inc.", "google");
-
-        String parts[] = platform.toLowerCase().split(":");
-        if (parts.length != 3) {
-            log(logger, Messages.SDK_ADDON_FORMAT_UNRECOGNISED(platform));
-            return null;
-        }
-
-        // Determine addon name
-        String vendor = parts[0].replaceAll("[^a-z0-9_-]+", "_").replaceAll("_+", "_")
-                .replace("_$", "");
-        String addon = parts[1].replaceAll("[^a-z0-9_-]+", "_").replaceAll("_+", "_")
-                .replace("_$", "");
-        String component = String.format("addon-%s-%s-%s", addon, vendor, parts[2]);
-        components.add(component);
-
-        return components;
-    }
-
-    /**
-     * Determines the Android platform for the given emulator configuration.<br>
-     * This is a string like "android-10" or "Google Inc.:Google APIs:4".
-     *
-     * @param launcher Used to launch tasks on the remote node.
-     * @param emuConfig The emulator whose target platform we want to determine.
-     * @return The platform, or {@code null} if it could not be determined.
-     */
-    private static String getPlatformForEmulator(Launcher launcher, final EmulatorConfig emuConfig)
-            throws IOException, InterruptedException {
-        // For existing, named emulators, get the target from the metadata file
-        if (emuConfig.isNamedEmulator()) {
-            return getPlatformFromExistingEmulator(launcher, emuConfig);
-        }
-
-        // Otherwise, use the configured platform
-        return emuConfig.getOsVersion().getTargetName();
-    }
-
-    /**
-     * Determines the Android platform for an existing emulator, via its metadata config file.
-     *
-     * @param launcher Used to access files on the remote node.
-     * @param emuConfig The emulator whose target platform we want to determine.
-     * @return The platform identifier.
-     */
-    private static String getPlatformFromExistingEmulator(Launcher launcher,
-            final EmulatorConfig emuConfig) throws IOException, InterruptedException {
-        return launcher.getChannel().call(new MasterToSlaveCallable<String, IOException>() {
-            public String call() throws IOException {
-                File metadataFile = emuConfig.getAvdMetadataFile();
-                Map<String, String> metadata = Utils.parseConfigFile(metadataFile);
-                return metadata.get("target");
-            }
-            private static final long serialVersionUID = 1L;
-        });
-    }
 
     /**
      * Writes the configuration file required to opt out of SDK usage statistics gathering.

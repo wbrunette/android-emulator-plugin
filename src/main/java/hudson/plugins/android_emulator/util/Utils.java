@@ -1,5 +1,7 @@
 package hudson.plugins.android_emulator.util;
 
+import java.util.StringTokenizer;
+
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Functions;
@@ -335,7 +337,7 @@ public class Utils {
      */
     private static String getSdkRootFromPath(boolean isUnix) {
         // List of tools which should be found together in an Android SDK tools directory
-        Tool[] tools = { Tool.ANDROID, Tool.EMULATOR };
+        Tool[] tools = { Tool.AVDMANAGER, Tool.EMULATOR, Tool.SDKMANAGER };
 
         // Get list of directories from the PATH environment variable
         List<String> paths = Arrays.asList(System.getenv("PATH").split(File.pathSeparator));
@@ -411,7 +413,12 @@ public class Utils {
         final String executable = tool.getExecutable(isUnix);
         ArgumentListBuilder builder = new ArgumentListBuilder(androidToolsDir + executable);
         if (args != null) {
-            builder.add(Util.tokenize(args));
+        	StringTokenizer tokens = new StringTokenizer(args, " \t\n\r\f");
+        	while(tokens.hasMoreTokens()) {
+        		String argument = tokens.nextToken();
+        		LOGGER.warning("WAYLON - ARG: " + argument);
+        		builder.add(argument);
+        	}
         }
 
         return builder;

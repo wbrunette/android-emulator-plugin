@@ -152,7 +152,7 @@ public class UpdateProjectBuilder extends AbstractBuilder {
                 shortPath = project.path.substring(workspace.length() + 1);
             }
             log(logger, Messages.CREATING_BUILD_FILES(project.type.name.toString(), shortPath));
-            Utils.runAndroidTool(launcher, logger, logger, androidSdk, Tool.ANDROID, args, dir);
+            Utils.runAndroidTool(launcher, logger, logger, androidSdk, Tool.SDKMANAGER, args, dir);
         }
 
         // Done!

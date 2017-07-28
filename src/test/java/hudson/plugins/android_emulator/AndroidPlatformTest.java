@@ -36,15 +36,6 @@ public class AndroidPlatformTest extends TestCase {
         assertTrue(AndroidPlatform.valueOf("Some:Addon:12").isCustomPlatform());
     }
 
-    public void testRequiresAbi() {
-        assertFalse(AndroidPlatform.SDK_1_1.requiresAbi());
-        assertTrue(AndroidPlatform.SDK_2_3_3.requiresAbi()); // See JENKINS-14741 & commit 485d72b
-        assertFalse(AndroidPlatform.SDK_3_2.requiresAbi());
-        assertFalse(AndroidPlatform.SDK_4_0.requiresAbi());
-        assertTrue(AndroidPlatform.SDK_4_0_3.requiresAbi());
-        assertTrue(AndroidPlatform.SDK_4_2.requiresAbi());
-        assertTrue(AndroidPlatform.valueOf("android-99").requiresAbi());
-        assertTrue(AndroidPlatform.valueOf("Intel Atom x86 System Image").requiresAbi());
-    }
+
 
 }
