@@ -82,7 +82,7 @@ public class UtilsTest extends TestCase {
         writer.println("key=value\\\nsplit\\\nin\\\nlines\n");
         writer.close();
 
-        final Map<String, String> map = Utils.parseConfigFile(temp);
+        final Map<String, String> map = Utils.parseConfigFile(temp, "testReadProperties");
         assertEquals(1, map.size());
     }
 

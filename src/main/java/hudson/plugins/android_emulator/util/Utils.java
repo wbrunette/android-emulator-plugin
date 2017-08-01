@@ -453,7 +453,16 @@ public class Utils {
             AndroidSdk androidSdk, Tool tool, String args, FilePath workingDirectory, long timeoutMs)
                 throws IOException, InterruptedException {
 
+    	LOGGER.warning("WAYLON - Run Android Tool - Name: " + tool.name());
+    	
         ArgumentListBuilder cmd = Utils.getToolCommand(androidSdk, launcher.isUnix(), tool, args);
+        
+        if (cmd != null) {
+        	for(String argument : cmd.toList()) {
+        		LOGGER.warning("WAYLON - ARG: " + argument);
+        	}
+        }
+
         ProcStarter procStarter = launcher.launch().stdout(stdout).stderr(stderr).cmds(cmd);
         if (androidSdk.hasKnownHome()) {
             // Copy the old one, so we don't mutate the argument.
@@ -485,8 +494,10 @@ public class Utils {
      * @return The key-value pairs contained in the file, ignoring any comments or blank lines.
      * @throws IOException If the file could not be read.
      */
-    public static Map<String, String> parseConfigFile(File configFile) throws IOException {
-        FileReader fileReader = new FileReader(configFile);
+    public static Map<String, String> parseConfigFile(File configFile, String reason) throws IOException {
+    	LOGGER.warning("WAYLON - REASON:" + reason + " PARSE CONFIG FILE: " + configFile.getCanonicalPath());
+    	
+    	FileReader fileReader = new FileReader(configFile);
         BufferedReader reader = new BufferedReader(fileReader);
         Properties properties = new Properties();
         properties.load(reader);

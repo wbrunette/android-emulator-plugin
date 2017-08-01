@@ -1,11 +1,15 @@
 package hudson.plugins.android_emulator;
 
-public class EmulatorVersion {
+import java.io.Serializable;
+
+public class EmulatorVersion implements Serializable {
+
+	private static final long serialVersionUID = -5266723955047398248L;
 
 	private static final String SEMI_COLON = ";";
 	private static final String REMOTE_PACKAGE_TYPE_IMAGE = "system-images";
 
-	public enum AndroidApi {
+	public enum AndroidApi implements Serializable {
 		DEFAULT("default"), GOOGLE("google_apis");
 
 		public final String pathString;
@@ -28,7 +32,7 @@ public class EmulatorVersion {
 
 	}
 
-	public enum AndroidHardware {
+	public enum AndroidHardware implements Serializable {
 		X86("x86"), X86_64("x86_64"), ARMEABI_V7A("armeabi-v7a"), ARM64_V8A("arm64-v8a");
 
 		public final String pathString;

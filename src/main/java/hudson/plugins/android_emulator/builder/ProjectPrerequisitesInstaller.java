@@ -105,7 +105,7 @@ public class ProjectPrerequisitesInstaller extends AbstractBuilder {
             String platform = null;
             try {
                 // Read configured target platform from file
-                platform = Utils.parseConfigFile(f).get("target");
+                platform = Utils.parseConfigFile(f, "getPlatformFromProjectFile").get("target");
                 if (platform != null) {
                     platform = platform.trim();
                 }

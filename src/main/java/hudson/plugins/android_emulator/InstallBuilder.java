@@ -81,6 +81,8 @@ public class InstallBuilder extends AbstractBuilder {
         String apkFileExpanded = Utils.expandVariables(build, listener, apkFile);
         FilePath apkPath = build.getWorkspace().child(apkFileExpanded);
 
+        AndroidEmulator.log(logger, "Waylon - apkFileExpanded:" + apkFileExpanded + " ***APKPATH: " + apkPath);
+        
         // Check whether the file exists
         boolean exists = apkPath.exists();
         if (!exists) {
@@ -107,7 +109,7 @@ public class InstallBuilder extends AbstractBuilder {
         AndroidEmulator.log(logger, Messages.INSTALLING_APK(apkPath.getName()));
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
         ForkOutputStream forkStream = new ForkOutputStream(logger, stdout);
-        String args = String.format("%s install -r \"%s\"", deviceIdentifier, apkPath.getName());
+        String args = String.format("%s install -r %s", deviceIdentifier, apkPath.toString());
         Utils.runAndroidTool(launcher, build.getEnvironment(TaskListener.NULL), forkStream, logger,
                 androidSdk, Tool.ADB, args, apkPath.getParent(), INSTALL_TIMEOUT);
 

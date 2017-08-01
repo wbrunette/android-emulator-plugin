@@ -59,7 +59,7 @@ enum SnapshotState {
 
 class AndroidPlatform implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 4L;
 
     static final AndroidPlatform SDK_1_1 = new AndroidPlatform("1.1", 2);
     static final AndroidPlatform SDK_1_5 = new AndroidPlatform("1.5", 3);
@@ -299,7 +299,16 @@ class ScreenResolution implements Serializable {
         return width +"x"+ height;
     }
 
-    @Override
+    
+    public int getWidth() {
+		return width;
+	}
+
+	public int getHeight() {
+		return height;
+	}
+
+	@Override
     public String toString() {
         if (isCustomResolution()) {
             return getDimensionString();
