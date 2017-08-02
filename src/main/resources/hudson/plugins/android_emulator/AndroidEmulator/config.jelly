@@ -27,17 +27,10 @@
                   items="${descriptor.androidVersions}"
                   checkUrl="'descriptorByName/AndroidEmulator/checkOsVersion?value='+escape(this.value)" />
             </f:entry>
-            <f:entry title="${%Screen density}" help="/plugin/android-emulator/help-screenDensity.html">
-              <f:editableComboBox name="android-emulator.screenDensity" field="screenDensity"
-                  items="${descriptor.deviceDensities}"
-                  checkUrl="'descriptorByName/AndroidEmulator/checkScreenDensity?value='+escape(this.value)" />
-            </f:entry>
-            <f:entry title="${%Screen resolution}" help="/plugin/android-emulator/help-screenResolution.html">
-              <f:editableComboBox id="android-emulator.screenResolution" field="screenResolution"
-                  items="${descriptor.deviceResolutions}"
-                  checkUrl="'descriptorByName/AndroidEmulator/checkScreenResolution?value='+ escape(this.value)
-                      +'&amp;density='+ escape(Form.findMatchingInput(this,'android-emulator.screenDensity').value)
-                      +'&amp;osVersion='+ escape(document.getElementById('android-emulator.osVersion').value)" />
+            <f:entry title="${%Avd Device}" help="/plugin/android-emulator/help-screenDensity.html">
+              <f:editableComboBox name="android-emulator.avdDevice" field="avdDevice"
+                  items="${descriptor.avdDevices}"
+                  checkUrl="'descriptorByName/AndroidEmulator/checkAvdDevice?value='+escape(this.value)" />
             </f:entry>
             <f:entry title="${%Device locale}" help="/plugin/android-emulator/help-deviceLocale.html">
               <f:editableComboBox id="android-emulator.deviceLocale" field="deviceLocale"
@@ -94,11 +87,6 @@
           <f:checkbox id="android-emulator.showWindow" name="android-emulator.showWindow"
               checked="${instance.showWindow}" />
           <label class="attach-previous">${%Show emulator window}</label>
-        </f:entry>
-        <f:entry help="/plugin/android-emulator/help-useSnapshots.html">
-          <f:checkbox id="android-emulator.useSnapshots" name="android-emulator.useSnapshots"
-              checked="${instance.useSnapshots}" />
-          <label class="attach-previous">${%Use emulator snapshots}</label>
         </f:entry>
       </f:section>
 

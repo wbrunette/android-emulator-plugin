@@ -33,8 +33,7 @@ class EmulatorConfig implements Serializable {
 
     private String avdName;
     private EmulatorVersion emulatorVersion;
-    private ScreenDensity screenDensity;
-    private ScreenResolution screenResolution;
+    private AvdDevice avdDevice;
     private String deviceLocale;
     private String sdCardSize;
     private boolean wipeData;
@@ -55,12 +54,12 @@ class EmulatorConfig implements Serializable {
         this.avdNameSuffix = avdNameSuffix;
     }
 
-    private EmulatorConfig(String osVersion, String screenDensity, String screenResolution,
+    private EmulatorConfig(String osVersion, String avdDevice, 
             String deviceLocale, String sdCardSize, boolean wipeData, boolean showWindow, String commandLineOptions, String targetAbi, String androidSdkHome,
             String executable, String avdNameSuffix)
                 throws IllegalArgumentException {
-        if (osVersion == null || screenDensity == null || screenResolution == null) {
-            throw new IllegalArgumentException("Valid OS version and screen properties must be supplied.");
+        if (osVersion == null || avdDevice == null ) {
+            throw new IllegalArgumentException("Valid OS version and device properties must be supplied.");
         }
 
         // Normalise incoming variables
@@ -68,12 +67,9 @@ class EmulatorConfig implements Serializable {
         if (targetLength > 2 && osVersion.startsWith("\"") && osVersion.endsWith("\"")) {
             osVersion = osVersion.substring(1, targetLength - 1);
         }
-        screenDensity = screenDensity.toLowerCase();
-        if (screenResolution.matches("(?i)"+ Constants.REGEX_SCREEN_RESOLUTION_ALIAS)) {
-            screenResolution = screenResolution.toUpperCase();
-        } else if (screenResolution.matches("(?i)"+ Constants.REGEX_SCREEN_RESOLUTION)) {
-            screenResolution = screenResolution.toLowerCase();
-        }
+        
+        this.avdDevice = AvdDevice.valueOf(avdDevice.toUpperCase());
+
         if (deviceLocale != null && deviceLocale.length() > 4) {
             deviceLocale = deviceLocale.substring(0, 2).toLowerCase() +"_"
                 + deviceLocale.substring(3).toUpperCase();
@@ -84,16 +80,7 @@ class EmulatorConfig implements Serializable {
             throw new IllegalArgumentException(
                     "OS version not recognised: " + osVersion);
         }
-        this.screenDensity = ScreenDensity.valueOf(screenDensity);
-        if (this.screenDensity == null) {
-            throw new IllegalArgumentException(
-                    "Screen density not recognised: " + screenDensity);
-        }
-        this.screenResolution = ScreenResolution.valueOf(screenResolution);
-        if (this.screenResolution == null) {
-            throw new IllegalArgumentException(
-                    "Screen resolution not recognised: " + screenResolution);
-        }
+        
         this.deviceLocale = deviceLocale;
         this.sdCardSize = sdCardSize;
         this.wipeData = wipeData;
@@ -108,12 +95,12 @@ class EmulatorConfig implements Serializable {
         this.avdNameSuffix = avdNameSuffix;
     }
 
-    public static final EmulatorConfig create(String avdName, String osVersion, String screenDensity,
-            String screenResolution, String deviceLocale, String sdCardSize, boolean wipeData,
+    public static final EmulatorConfig create(String avdName, String osVersion, String avdDevice,
+            String deviceLocale, String sdCardSize, boolean wipeData,
             boolean showWindow, String commandLineOptions, String targetAbi,
             String androidSdkHome, String executable, String avdNameSuffix) {
         if (Util.fixEmptyAndTrim(avdName) == null) {
-            return new EmulatorConfig(osVersion, screenDensity, screenResolution, deviceLocale, sdCardSize, wipeData,
+            return new EmulatorConfig(osVersion, avdDevice, deviceLocale, sdCardSize, wipeData,
                     showWindow, commandLineOptions, targetAbi, androidSdkHome, executable, avdNameSuffix);
         }
 
@@ -121,10 +108,9 @@ class EmulatorConfig implements Serializable {
                 avdNameSuffix);
     }
 
-    public static final String getAvdName(String avdName, String osVersion, String screenDensity,
-            String screenResolution, String deviceLocale, String targetAbi, String avdNameSuffix) {
+    public static final String getAvdName(String avdName, String osVersion, String avdDevice, String deviceLocale, String targetAbi, String avdNameSuffix) {
         try {
-            return create(avdName, osVersion, screenDensity, screenResolution, deviceLocale, null, false, false,
+            return create(avdName, osVersion, avdDevice, deviceLocale, null, false, false,
                     null, targetAbi, null, null, avdNameSuffix).getAvdName();
         } catch (IllegalArgumentException e) {}
         return null;
@@ -152,25 +138,21 @@ class EmulatorConfig implements Serializable {
     
     private String getGeneratedAvdName() {
         String locale = getDeviceLocale().replace('_', '-');
-        String density = screenDensity.toString();
-        String resolution = screenResolution.toString();
         String platform = getEmulatorVersionString().replaceAll("[^a-zA-Z0-9._-]", "_");
+        String device = getDeviceString().replaceAll("[^a-zA-Z0-9._-]", "_");
         String suffix = "";
         if (avdNameSuffix != null) {
             suffix = "_" + avdNameSuffix.replaceAll("[^a-zA-Z0-9._-]", "-");
         }
 
-        return String.format("hudson_%s_%s_%s_%s%s", locale, density, resolution, platform, suffix);
+        return String.format("hudson_%s_%s_%s%s", locale, device,  platform, suffix);
+    }
+
+    public String getDeviceString() {
+    	return avdDevice.name();
     }
 
 
-    public ScreenDensity getScreenDensity() {
-        return screenDensity;
-    }
-
-    public ScreenResolution getScreenResolution() {
-        return screenResolution;
-    }
 
     public String getDeviceLocale() {
         if (deviceLocale == null) {
@@ -233,8 +215,8 @@ class EmulatorConfig implements Serializable {
      * @return A Callable that will update the config of the current AVD.
      */
     public Callable<Void, IOException> getEmulatorConfigTask(HardwareProperty[] hardwareProperties,
-                                                             BuildListener listener) {
-        return new EmulatorConfigTask(hardwareProperties, listener);
+                                                             BuildListener listener, AndroidSdk sdk) {
+        return new EmulatorConfigTask(hardwareProperties, listener, sdk);
     }
 
     /**
@@ -361,6 +343,7 @@ class EmulatorConfig implements Serializable {
         sb.append(" -avd ");
         sb.append(getAvdName());
 
+        
 		sb.append(" -no-snapshot ");
 
         // Options
@@ -604,14 +587,6 @@ class EmulatorConfig implements Serializable {
                 errOutput = null;
             }
 
-            AndroidEmulator.log(logger, "Waylon - Get ready to set screen resolution");
-            
-            // Set the screen density
-            setAvdConfigValue(androidSdkHome, "hw.lcd.density", String.valueOf(getScreenDensity().getDpi()), logger);
-            setAvdConfigValue(androidSdkHome, "hw.lcd.width", String.valueOf(getScreenResolution().getWidth()), logger);
-            setAvdConfigValue(androidSdkHome, "hw.lcd.height", String.valueOf(getScreenResolution().getHeight()), logger);
-            
-            AndroidEmulator.log(logger, "Waylon - Finished setting screen resolution");
             
             // Check everything went ok
             if (!avdCreated) {
@@ -659,11 +634,13 @@ class EmulatorConfig implements Serializable {
 
         private final HardwareProperty[] hardwareProperties;
         private final BuildListener listener;
+        private final AndroidSdk androidSdk;
         private transient PrintStream logger;
 
-        public EmulatorConfigTask(HardwareProperty[] hardwareProperties, BuildListener listener) {
+        public EmulatorConfigTask(HardwareProperty[] hardwareProperties, BuildListener listener, AndroidSdk androidSdk) {
             this.hardwareProperties = hardwareProperties;
             this.listener = listener;
+            this.androidSdk = androidSdk;
         }
 
         public Void call() throws IOException {
@@ -676,7 +653,10 @@ class EmulatorConfig implements Serializable {
             // Parse the AVD's config
             Map<String, String> configValues;
             configValues = parseAvdConfigFile(homeDir, "Setting hardware properties directly from jenkins project configure");
-
+            
+            Map<String, String> avdProperties = avdDevice.getDeviceSpecs();
+            configValues.putAll(avdProperties);
+            
             // Insert any hardware properties we want to override
             AndroidEmulator.log(logger, Messages.SETTING_HARDWARE_PROPERTIES());
             for (HardwareProperty prop : hardwareProperties) {

@@ -76,8 +76,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
 
     // Custom emulator properties
     @Exported public final String osVersion;
-    @Exported public final String screenDensity;
-    @Exported public final String screenResolution;
+    @Exported public final String avdDevice;
     @Exported public final String deviceLocale;
     @Exported public final String targetAbi;
     @Exported public final String sdCardSize;
@@ -87,7 +86,6 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
     // Common properties
     @Exported public final boolean wipeData;
     @Exported public final boolean showWindow;
-    @Exported public final boolean useSnapshots;
 
     // Advanced properties
     @Exported public final boolean deleteAfterBuild;
@@ -98,21 +96,19 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
 
 
     @DataBoundConstructor
-    public AndroidEmulator(String avdName, String osVersion, String screenDensity,
-            String screenResolution, String deviceLocale, String sdCardSize,
+    public AndroidEmulator(String avdName, String osVersion, String avdDevice,
+            String deviceLocale, String sdCardSize,
             HardwareProperty[] hardwareProperties, boolean wipeData, boolean showWindow,
-            boolean useSnapshots, boolean deleteAfterBuild, int startupDelay, int startupTimeout,
+            boolean deleteAfterBuild, int startupDelay, int startupTimeout,
             String commandLineOptions, String targetAbi, String executable, String avdNameSuffix) {
         this.avdName = avdName;
         this.osVersion = osVersion;
-        this.screenDensity = screenDensity;
-        this.screenResolution = screenResolution;
+        this.avdDevice = avdDevice;
         this.deviceLocale = deviceLocale;
         this.sdCardSize = sdCardSize;
         this.hardwareProperties = hardwareProperties;
         this.wipeData = wipeData;
         this.showWindow = showWindow;
-        this.useSnapshots = useSnapshots;
         this.deleteAfterBuild = deleteAfterBuild;
         this.executable = executable;
         this.startupDelay = Math.abs(startupDelay);
@@ -157,13 +153,12 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
         // Expand variables using the node's environment and the matrix properties, if any
         String avdName = Utils.expandVariables(envVars, combination, this.avdName);
         String osVersion = Utils.expandVariables(envVars, combination, this.osVersion);
-        String screenDensity = Utils.expandVariables(envVars, combination, this.screenDensity);
-        String screenResolution = Utils.expandVariables(envVars, combination, this.screenResolution);
+        String avdDevice = Utils.expandVariables(envVars, combination, this.avdDevice);
         String deviceLocale = Utils.expandVariables(envVars, combination, this.deviceLocale);
         String targetAbi = Utils.expandVariables(envVars, combination, this.targetAbi);
         String avdNameSuffix = Utils.expandVariables(envVars, combination, this.avdNameSuffix);
 
-        return EmulatorConfig.getAvdName(avdName, osVersion, screenDensity, screenResolution,
+        return EmulatorConfig.getAvdName(avdName, osVersion, avdDevice,
                 deviceLocale, targetAbi, avdNameSuffix);
     }
 
@@ -183,8 +178,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
         // Device properties
         String avdName = Utils.expandVariables(envVars, buildVars, this.avdName);
         String osVersion = Utils.expandVariables(envVars, buildVars, this.osVersion);
-        String screenDensity = Utils.expandVariables(envVars, buildVars, this.screenDensity);
-        String screenResolution = Utils.expandVariables(envVars, buildVars, this.screenResolution);
+        String avdDevice = Utils.expandVariables(envVars, buildVars, this.avdDevice);
         String deviceLocale = Utils.expandVariables(envVars, buildVars, this.deviceLocale);
         String sdCardSize = Utils.expandVariables(envVars, buildVars, this.sdCardSize);
         if (sdCardSize != null) {
@@ -214,7 +208,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
         // these are not binding, so the user may have saved invalid configuration.
         // Here we check whether or not it's worth proceeding based on the saved values.
         // As config variables aren't yet expanded, this check can't catch all possible errors.
-        String configError = isConfigValid(avdName, osVersion, screenDensity, screenResolution,
+        String configError = isConfigValid(avdName, osVersion, avdDevice,
                 deviceLocale, sdCardSize);
         if (configError != null) {
             log(logger, Messages.ERROR_MISCONFIGURED(configError));
@@ -227,8 +221,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
         boolean shouldKeepInWorkspace = descriptor.shouldKeepInWorkspace && Util.fixEmptyAndTrim(avdName) == null;
         final String androidSdkHome = (envVars != null && shouldKeepInWorkspace ? envVars.get("WORKSPACE") : null);
         try {
-            emuConfig = EmulatorConfig.create(avdName, osVersion, screenDensity,
-                screenResolution, deviceLocale, sdCardSize, wipeData, showWindow,
+            emuConfig = EmulatorConfig.create(avdName, osVersion, avdDevice, deviceLocale, sdCardSize, wipeData, showWindow,
                 commandLineOptions, targetAbi, androidSdkHome, executable, avdNameSuffix);
         } catch (IllegalArgumentException e) {
             log(logger, Messages.EMULATOR_CONFIGURATION_BAD(e.getLocalizedMessage()));
@@ -300,7 +293,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
         // Update emulator configuration with desired hardware properties
         if (!emuConfig.isNamedEmulator() && hardwareProperties.length != 0) {
         	log(logger, "Waylon - In Update Emulator Config");
-            Callable<Void, IOException> task = emuConfig.getEmulatorConfigTask(hardwareProperties, listener);
+            Callable<Void, IOException> task = emuConfig.getEmulatorConfigTask(hardwareProperties, listener, androidSdk);
             launcher.getChannel().call(task);
         }
 
@@ -455,9 +448,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
                 env.put("ANDROID_TMP_LOGCAT_FILE", logcatFile.getRemote());
                 if (!emuConfig.isNamedEmulator()) {
                     env.put("ANDROID_AVD_OS", emuConfig.getEumulatorOSPlatform().toString());
-                    env.put("ANDROID_AVD_DENSITY", emuConfig.getScreenDensity().toString());
-                    env.put("ANDROID_AVD_RESOLUTION", emuConfig.getScreenResolution().toString());
-                    env.put("ANDROID_AVD_SKIN", emuConfig.getScreenResolution().getSkinName());
+                    env.put("ANDROID_AVD_AVDDEVICE", emuConfig.getDeviceString());
                     env.put("ANDROID_AVD_LOCALE", emuConfig.getDeviceLocale());
                 }
                 if (androidSdk.hasKnownRoot()) {
@@ -587,8 +578,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
      *
      * @return A human-readable error message, or <code>null</code> if the config is valid.
      */
-    private String isConfigValid(String avdName, String osVersion, String screenDensity,
-            String screenResolution, String deviceLocale, String sdCardSize) {
+    private String isConfigValid(String avdName, String osVersion, String avdDevice, String deviceLocale, String sdCardSize) {
         if (getUseNamedEmulator()) {
             ValidationResult result = descriptor.doCheckAvdName(avdName, false);
             if (result.isFatal()) {
@@ -599,14 +589,11 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
             if (result.isFatal()) {
                 return result.getMessage();
             }
-            result = descriptor.doCheckScreenDensity(screenDensity, false);
+            result = descriptor.doCheckAvdDevice(avdDevice, false);
             if (result.isFatal()) {
                 return result.getMessage();
             }
-            result = descriptor.doCheckScreenResolution(screenResolution, null, null, false);
-            if (result.isFatal()) {
-                return result.getMessage();
-            }
+            
             result = descriptor.doCheckDeviceLocale(deviceLocale, false);
             if (result.isFatal()) {
                 return result.getMessage();
@@ -730,15 +717,13 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
         public BuildWrapper newInstance(StaplerRequest req, JSONObject formData) throws FormException {
             String avdName = null;
             String osVersion = null;
-            String screenDensity = null;
-            String screenResolution = null;
+            String avdDevice = null;
             String deviceLocale = null;
             String sdCardSize = null;
             String targetAbi = null;
             List<HardwareProperty> hardware = new ArrayList<HardwareProperty>();
             boolean wipeData = false;
             boolean showWindow = true;
-            boolean useSnapshots = true;
             boolean deleteAfterBuild = false;
             int startupDelay = 0;
             int startupTimeout = 0;
@@ -752,8 +737,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
                 avdName = Util.fixEmptyAndTrim(emulatorData.getString("avdName"));
             } else {
                 osVersion = Util.fixEmptyAndTrim(emulatorData.getString("osVersion"));
-                screenDensity = Util.fixEmptyAndTrim(emulatorData.getString("screenDensity"));
-                screenResolution = Util.fixEmptyAndTrim(emulatorData.getString("screenResolution"));
+                avdDevice = Util.fixEmptyAndTrim(emulatorData.getString("avdDevice"));
                 deviceLocale = Util.fixEmptyAndTrim(emulatorData.getString("deviceLocale"));
                 sdCardSize = Util.fixEmptyAndTrim(emulatorData.getString("sdCardSize"));
                 hardware = req.bindJSONToList(HardwareProperty.class, emulatorData.get("hardwareProperties"));
@@ -762,7 +746,6 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
             }
             wipeData = formData.getBoolean("wipeData");
             showWindow = formData.getBoolean("showWindow");
-            useSnapshots = formData.getBoolean("useSnapshots");
             deleteAfterBuild = formData.getBoolean("deleteAfterBuild");
             commandLineOptions = formData.getString("commandLineOptions");
             executable = formData.getString("executable");
@@ -774,9 +757,9 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
                 startupTimeout = Integer.parseInt(formData.getString("startupTimeout"));
             } catch (NumberFormatException e) {}
 
-            return new AndroidEmulator(avdName, osVersion, screenDensity, screenResolution,
+            return new AndroidEmulator(avdName, osVersion, avdDevice,
                     deviceLocale, sdCardSize, hardware.toArray(new HardwareProperty[0]), wipeData,
-                    showWindow, useSnapshots, deleteAfterBuild, startupDelay, startupTimeout, commandLineOptions,
+                    showWindow, deleteAfterBuild, startupDelay, startupTimeout, commandLineOptions,
                     targetAbi, executable, avdNameSuffix);
         }
 
@@ -795,14 +778,8 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
             return AndroidPlatform.ALL;
         }
 
-        /** Used in config.jelly: Lists the screen densities available. */
-        public ScreenDensity[] getDeviceDensities() {
-            return ScreenDensity.PRESETS;
-        }
-
-        /** Used in config.jelly: Lists the screen resolutions available. */
-        public ScreenResolution[] getDeviceResolutions() {
-            return ScreenResolution.PRESETS;
+        public AvdDevice [] getAvdDevices() {
+        	return AvdDevice.values();
         }
 
         /** Used in config.jelly: Lists the locales available. */
@@ -859,59 +836,22 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
             return ValidationResult.ok();
         }
 
-        public FormValidation doCheckScreenDensity(@QueryParameter String value) {
-            return doCheckScreenDensity(value, true).getFormValidation();
+        public FormValidation doCheckAvdDevice(@QueryParameter String value) {
+            return doCheckAvdDevice(value, true).getFormValidation();
         }
 
-        private ValidationResult doCheckScreenDensity(String density, boolean allowVariables) {
-            if (density == null || density.equals("")) {
+        private ValidationResult doCheckAvdDevice(String avdDevice, boolean allowVariables) {
+            if (avdDevice == null || avdDevice.equals("")) {
                 return ValidationResult.error(Messages.SCREEN_DENSITY_REQUIRED());
             }
-            String regex = Constants.REGEX_SCREEN_DENSITY;
-            if (allowVariables) {
-                regex += "|"+ Constants.REGEX_VARIABLE;
+            
+            try {
+            	AvdDevice.valueOf(avdDevice);
+            	return ValidationResult.ok();
+            } catch (Exception e) {
+            	return ValidationResult.error(Messages.SCREEN_DENSITY_NOT_NUMERIC());
             }
-            if (!density.matches(regex)) {
-                return ValidationResult.error(Messages.SCREEN_DENSITY_NOT_NUMERIC());
-            }
-
-            return ValidationResult.ok();
-        }
-
-        public FormValidation doCheckScreenResolution(@QueryParameter String value,
-                @QueryParameter String density, @QueryParameter String osVersion) {
-            return doCheckScreenResolution(value, density, osVersion, true).getFormValidation();
-        }
-
-        private ValidationResult doCheckScreenResolution(String resolution, String density,
-                String osVersion, boolean allowVariables) {
-            if (resolution == null || resolution.equals("")) {
-                return ValidationResult.error(Messages.SCREEN_RESOLUTION_REQUIRED());
-            }
-            String regex = Constants.REGEX_SCREEN_RESOLUTION_FULL;
-            if (allowVariables) {
-                regex += "|"+ Constants.REGEX_VARIABLE;
-            }
-            if (!resolution.matches(regex)) {
-                return ValidationResult.warning(Messages.INVALID_RESOLUTION_FORMAT());
-            }
-
-            // Warn about inconsistent WXGA skin names between Android 3.x and 4.x
-            AndroidPlatform platform = AndroidPlatform.valueOf(osVersion);
-            if (platform != null) {
-                int sdkLevel = platform.getSdkLevel();
-                if (sdkLevel >= 11 && platform.getSdkLevel() <= 13) {
-                    if (resolution.equals("WXGA720") || resolution.equals("WXGA800")) {
-                        String msg = Messages.SUSPECT_RESOLUTION_ANDROID_3(platform);
-                        return ValidationResult.warning(msg);
-                    }
-                } else if (sdkLevel >= 14 && resolution.equals("WXGA")) {
-                    String msg = Messages.SUSPECT_RESOLUTION_ANDROID_4(platform);
-                    return ValidationResult.warning(msg);
-                }
-            }
-
-            return ValidationResult.ok();
+            
         }
 
         public FormValidation doCheckDeviceLocale(@QueryParameter String value) {
