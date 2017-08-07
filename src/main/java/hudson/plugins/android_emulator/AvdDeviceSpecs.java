@@ -11,9 +11,7 @@ public class AvdDeviceSpecs implements Serializable {
 	public static final String NEXUS_7_SPECS = "hw.device.manufacturer=Google;"
 			+ "hw.device.name=Nexus 7 2013" + DELEMIN
 			+ "hw.lcd.density=320" + DELEMIN
-			+ "showDeviceFrame=yes" + DELEMIN
-			+ "skin.dynamic=yes" + DELEMIN
-			+ "skin.name=nexus_7_2013" + DELEMIN;
+			+ "showDeviceFrame=yes" + DELEMIN;
 	
 	public static final String NEXUS_7_SKIN_NAME = "nexus_7_2013";
 	

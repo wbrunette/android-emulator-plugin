@@ -6,8 +6,8 @@ import java.util.Map;
 import java.util.StringTokenizer;
 
 public enum AvdDevice implements Serializable {
-	NEXUS_7(AvdDeviceSpecs.NEXUS_7_SPECS, AvdDeviceSpecs.NEXUS_7_SKIN_NAME),
-	NEXUS_7_NO_SKIN(AvdDeviceSpecs.NEXUS_7_SPECS, null);
+	NEXUS_7_W_SKIN(AvdDeviceSpecs.NEXUS_7_SPECS, AvdDeviceSpecs.NEXUS_7_SKIN_NAME),
+	NEXUS_7(AvdDeviceSpecs.NEXUS_7_SPECS, null);
 
 	private final String specs;
 	private final String skin;
@@ -35,6 +35,7 @@ public enum AvdDevice implements Serializable {
 		}
 		
 		if (skin != null) {
+			specMap.put("skin.dynamic", "yes");
 			specMap.put("skin.name", skin);
 			String skinPath = "/skins/" + skin;
 			specMap.put("skin.path", skinPath);

@@ -388,6 +388,12 @@ class EmulatorConfig implements Serializable {
 
             final File homeDir = Utils.getHomeDirectory(androidSdk.getSdkHome());
             final File avdDirectory = getAvdDirectory(homeDir);
+            
+            try {
+            	AndroidEmulator.log(logger, "Waylon - homeDir:"  + homeDir.getCanonicalPath() + " avdDirectory:" + avdDirectory.getCanonicalPath());
+            } catch (Exception e) {
+            	AndroidEmulator.log(logger, "Waylon - PROBLEM!!!! COULD NOT GET homeDir OR avdDirectory");
+            }
             final boolean emulatorExists = getAvdConfigFile(homeDir).exists();
 
             // Can't do anything if a named emulator doesn't exist
@@ -657,10 +663,15 @@ class EmulatorConfig implements Serializable {
             Map<String, String> avdProperties = avdDevice.getDeviceSpecs();
             configValues.putAll(avdProperties);
             
+            AndroidEmulator.log(logger, "Waylon - Avd Device is:" + avdDevice.toString());
+            for(Map.Entry<String, String> entry : avdProperties.entrySet()) {
+            	AndroidEmulator.log(logger, String.format("Device Prop: %s: %s", entry.getKey(), entry.getValue()));
+            }
+            
             // Insert any hardware properties we want to override
             AndroidEmulator.log(logger, Messages.SETTING_HARDWARE_PROPERTIES());
             for (HardwareProperty prop : hardwareProperties) {
-                AndroidEmulator.log(logger, String.format("%s: %s", prop.key, prop.value), true);
+                AndroidEmulator.log(logger, String.format("%s: %s", prop.key, prop.value));
                 configValues.put(prop.key, prop.value);
             }
 
