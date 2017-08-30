@@ -106,13 +106,15 @@ public class InstallBuilder extends AbstractBuilder {
         // Execute installation
         AndroidEmulator.log(logger, Messages.INSTALLING_APK(apkPath.getName()));
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-        ForkOutputStream forkStream = new ForkOutputStream(logger, stdout);
+        ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+        ForkOutputStream stdoutForkStream = new ForkOutputStream(logger, stdout);
+        ForkOutputStream stderrForkStream = new ForkOutputStream(logger, stderr);
         String args = String.format("%s install -r \"%s\"", deviceIdentifier, apkPath.getName());
-        Utils.runAndroidTool(launcher, build.getEnvironment(TaskListener.NULL), forkStream, logger,
+        Utils.runAndroidTool(launcher, build.getEnvironment(TaskListener.NULL), stdoutForkStream, stderrForkStream,
                 androidSdk, Tool.ADB, args, apkPath.getParent(), INSTALL_TIMEOUT);
 
         Pattern p = Pattern.compile("^Success$", Pattern.MULTILINE);
-        boolean success = p.matcher(stdout.toString()).find();
+        boolean success = p.matcher(stdout.toString()).find() || p.matcher(stderr.toString()).find();
         if (!success && failOnInstallFailure) {
             return false;
         }
