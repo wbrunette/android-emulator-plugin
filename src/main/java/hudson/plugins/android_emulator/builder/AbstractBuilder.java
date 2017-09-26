@@ -271,13 +271,15 @@ public abstract class AbstractBuilder extends Builder {
         AndroidEmulator.log(logger, Messages.UNINSTALLING_APK(packageId));
 
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-        ForkOutputStream forkStream = new ForkOutputStream(logger, stdout);
+        ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+        ForkOutputStream stdoutForkStream = new ForkOutputStream(logger, stdout);
+        ForkOutputStream stderrForkStream = new ForkOutputStream(logger, stderr);
         String adbArgs = String.format("%s uninstall %s", deviceIdentifier, packageId);
         Utils.runAndroidTool(launcher, build.getEnvironment(TaskListener.NULL),
-                forkStream, logger, androidSdk, Tool.ADB, adbArgs, null, UNINSTALL_TIMEOUT);
+                stdoutForkStream, stderrForkStream, androidSdk, Tool.ADB, adbArgs, null, UNINSTALL_TIMEOUT);
 
-        // The package manager simply returns "Success" or "Failure" on stdout
-        return stdout.toString().contains("Success");
+        // The package manager simply returns "Success" or "Failure" on stdout or stderr
+        return stdout.toString().contains("Success") || stderr.toString().contains("Success");
     }
 
     /**
