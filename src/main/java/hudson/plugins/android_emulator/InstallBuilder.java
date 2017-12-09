@@ -117,6 +117,7 @@ public class InstallBuilder extends AbstractBuilder {
 
         Pattern p = Pattern.compile("^Success$", Pattern.MULTILINE);
         boolean success = p.matcher(stdout.toString()).find() || p.matcher(stderr.toString()).find();
+        AndroidEmulator.log(logger, "Waylon - Install Success is:" + success);
         if (!success && failOnInstallFailure) {
             return false;
         }
