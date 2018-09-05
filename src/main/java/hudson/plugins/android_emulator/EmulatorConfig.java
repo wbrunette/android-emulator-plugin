@@ -562,6 +562,12 @@ class EmulatorConfig implements Serializable {
                 if (process.waitFor() == 0) {
                     // Do a sanity check to ensure the AVD was really created
                     avdCreated = getAvdConfigFile(homeDir).exists();
+                    
+                    // Update the AVD config file with bigger internal storage if emulator is 5 or 5.1
+                    AndroidPlatform os = emulatorVersion.getOSPlatform();
+                    if(AndroidPlatform.SDK_5_0.equals(os) || AndroidPlatform.SDK_5_1.equals(os)) {                    		
+                    	setAvdConfigValue(androidSdkHome, "disk.dataPartition.size", "1024", logger);
+                    }
                 }
 
             } catch (IOException e) {
