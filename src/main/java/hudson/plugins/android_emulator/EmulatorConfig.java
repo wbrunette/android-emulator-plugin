@@ -562,7 +562,7 @@ class EmulatorConfig implements Serializable {
             try {
                 ProcessBuilder procBuilder = new ProcessBuilder(builder.toList());
                 if (androidSdk.hasKnownRoot()) {
-                    procBuilder.environment().put("AVDMANAGER_OPTS", "-Dcom.android.sdkmanager.toolsdir=" + androidSdk.getSdkRoot() + "/tools/bin");
+                    //procBuilder.environment().put("AVDMANAGER_OPTS", "-Dcom.android.sdkmanager.toolsdir=" + androidSdk.getSdkRoot() + "/tools/bin");
                     procBuilder.environment().put(Constants.ENV_VAR_ANDROID_SDK_ROOT, androidSdk.getSdkRoot());
                 }
                 if (androidSdk.hasKnownHome()) {
